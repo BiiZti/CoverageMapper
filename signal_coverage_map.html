@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>南通市信号覆盖地图</title>
+    <style>
+        /* 页面整体样式 */
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        /* 标题区域 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 8px 0 0 0;
+            opacity: 0.9;
+        }
+
+        /* 信息面板 */
+        .info-panel {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 地图容器 */
+        #map {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 图例样式 */
+        .legend {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #dee2e6;
+        }
+
+        .legend h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .red { background-color: #dc3545; }
+        .blue { background-color: #007bff; }
+        .green { background-color: #28a745; }
+    </style>
+</head>
+<body>
+    <!-- 页面标题 -->
+    <div class="header">
+        <h1>🗺️ 南通市信号覆盖地图</h1>
+        <p>实时监测网络信号质量分布情况</p>
+    </div>
+
+    <!-- 信息面板 -->
+    <div class="info-panel">
+        <h3>📊 监测点概况</h3>
+        <p>当前显示 <strong>3个</strong> 信号监测点，点击标记查看详细信息</p>
+    </div>
+
+    <!-- 地图容器 -->
+    <div id="map"></div>
+
+    <!-- 图例说明 -->
+    <div class="legend">
+        <h4>📶 信号强度图例</h4>
+        <div class="legend-item">
+            <div class="legend-dot red"></div>
+            <span>严重盲区 (1-2分) - 信号极差，需要优先处理</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot blue"></div>
+            <span>信号较差 (3-4分) - 信号不稳定，影响使用</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot green"></div>
+            <span>信号良好 (7-10分) - 信号正常</span>
+        </div>
+    </div>
+
+    <!-- 高德地图API -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=d9f68330ebc73e4856581f67deac33a5"></script>
+    
+    <script>
+        // 信号监测点数据配置
+        const SIGNAL_DATA = [
+            {
+                name: "南通市崇川区南大街",
+                position: [120.86419, 32.012962],
+                signal: 2,
+                network: "5G",
+                reporter: "张三",
+                time: "2024-01-15 10:30",
+                note: "地下商场信号较弱"
+            },
+            {
+                name: "南通火车站",
+                position: [120.860919, 32.004182],
+                signal: 3,
+                network: "5G", 
+                reporter: "李明",
+                time: "2024-01-19 07:30",
+                note: "候车厅部分座位区信号不佳"
+            },
+            {
+                name: "南通大学附属医院",
+                position: [120.865718, 32.008145],
+                signal: 2,
+                network: "4G",
+                reporter: "陈华", 
+                time: "2024-01-19 10:15",
+                note: "住院部电梯间信号很差"
+            }
+        ];
+
+        // 地图配置
+        const MAP_CONFIG = {
+            zoom: 14,
+            center: [120.863, 32.008],
+            viewMode: '2D'
+        };
+
+        /**
+         * 根据信号强度获取图标颜色
+         * @param {number} signal - 信号强度 (1-10)
+         * @returns {string} 图标颜色代码
+         */
+        function getIconColor(signal) {
+            if (signal <= 2) return 'r';      // 红色 - 严重盲区
+            if (signal <= 4) return 'b';      // 蓝色 - 信号较差  
+            if (signal <= 6) return 'y';      // 黄色 - 信号一般
+            return 'g';                       // 绿色 - 信号良好
+        }
+
+        /**
+         * 创建自定义标记图标
+         * @param {string} color - 图标颜色代码
+         * @returns {AMap.Icon} 图标对象
+         */
+        function createMarkerIcon(color) {
+            return new AMap.Icon({
+                size: new AMap.Size(25, 34),
+                image: `https://webapi.amap.com/theme/v1.3/markers/n/mark_${color}.png`
+            });
+        }
+
+        /**
+         * 获取信号强度描述
+         * @param {number} signal - 信号强度
+         * @returns {string} 信号描述
+         */
+        function getSignalDescription(signal) {
+            if (signal <= 2) return '严重盲区';
+            if (signal <= 4) return '信号较差';
+            if (signal <= 6) return '信号一般';
+            return '信号良好';
+        }
+
+        /**
+         * 初始化地图
+         */
+        function initMap() {
+            console.log('开始初始化地图...');
+
+            // 检查高德地图API是否加载成功
+            if (typeof AMap === 'undefined') {
+                alert('❌ 高德地图API加载失败，请检查网络连接！');
+                return;
+            }
+
+            try {
+                // 创建地图实例
+                const map = new AMap.Map('map', MAP_CONFIG);
+                console.log('✅ 地图创建成功');
+
+                // 添加所有监测点标记
+                addSignalMarkers(map);
+
+                // 地图加载完成事件
+                map.on('complete', function() {
+                    console.log('✅ 地图加载完成，显示所有监测点');
+                });
+
+            } catch (error) {
+                console.error('❌ 地图初始化失败:', error);
+                alert(`地图初始化失败: ${error.message}`);
+            }
+        }
+
+        /**
+         * 添加信号监测点标记
+         * @param {AMap.Map} map - 地图实例
+         */
+        function addSignalMarkers(map) {
+            SIGNAL_DATA.forEach((point, index) => {
+                const iconColor = getIconColor(point.signal);
+                const icon = createMarkerIcon(iconColor);
+                
+                // 创建标记点
+                const marker = new AMap.Marker({
+                    position: point.position,
+                    title: `${point.name} - 信号强度: ${point.signal}/10 (${getSignalDescription(point.signal)})`,
+                    icon: icon
+                });
+
+                // 添加到地图
+                map.add(marker);
+                console.log(`✅ 已添加标记点 ${index + 1}: ${point.name}`);
+            });
+        }
+
+        // 页面加载完成后初始化地图
+        window.onload = function() {
+            console.log('🚀 页面加载完成，开始初始化...');
+            initMap();
+        };
+    </script>
+</body>
+</html> 
