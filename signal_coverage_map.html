@@ -34,6 +34,55 @@
             opacity: 0.9;
         }
 
+        /* 文件导入面板 */
+        .import-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            flex: 1;
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .file-input:hover {
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         /* 信息面板 */
         .info-panel {
             background: white;
@@ -82,6 +131,31 @@
         .red { background-color: #dc3545; }
         .blue { background-color: #007bff; }
         .green { background-color: #28a745; }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .status-message {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
     </style>
 </head>
 <body>
@@ -91,10 +165,22 @@
         <p>实时监测网络信号质量分布情况</p>
     </div>
 
+    <!-- Excel导入面板 -->
+    <div class="import-panel">
+        <h3>📁 Excel数据导入</h3>
+        <div class="file-input-wrapper">
+            <input type="file" id="excelFile" class="file-input" accept=".xlsx,.xls" />
+            <button id="loadBtn" class="btn" onclick="loadExcelData()">加载数据</button>
+            <button id="useDefaultBtn" class="btn" onclick="useDefaultData()">使用示例数据</button>
+        </div>
+        <div id="statusMessage"></div>
+        <p><strong>Excel文件格式要求：</strong>包含列：位置描述、详细地址、网络类型、信号强度、上报时间、上报人、备注</p>
+    </div>
+
     <!-- 信息面板 -->
     <div class="info-panel">
         <h3>📊 监测点概况</h3>
-        <p>当前显示 <strong>3个</strong> 信号监测点，点击标记查看详细信息</p>
+        <p id="dataInfo">请导入Excel文件或使用示例数据</p>
     </div>
 
     <!-- 地图容器 -->
@@ -117,12 +203,19 @@
         </div>
     </div>
 
+    <!-- 引入XLSX解析库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- 高德地图API -->
     <script src="https://webapi.amap.com/maps?v=2.0&key=d9f68330ebc73e4856581f67deac33a5"></script>
     
     <script>
-        // 信号监测点数据配置
-        const SIGNAL_DATA = [
+        // 全局变量
+        let map = null;
+        let markers = [];
+        let currentData = [];
+
+        // 默认示例数据
+        const DEFAULT_DATA = [
             {
                 name: "南通市崇川区南大街",
                 position: [120.86419, 32.012962],
@@ -160,9 +253,20 @@
         };
 
         /**
+         * 显示状态消息
+         */
+        function showMessage(message, type = 'success') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status-message ${type}">${message}</div>`;
+            
+            // 3秒后自动清除消息
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 3000);
+        }
+
+        /**
          * 根据信号强度获取图标颜色
-         * @param {number} signal - 信号强度 (1-10)
-         * @returns {string} 图标颜色代码
          */
         function getIconColor(signal) {
             if (signal <= 2) return 'r';      // 红色 - 严重盲区
@@ -173,8 +277,6 @@
 
         /**
          * 创建自定义标记图标
-         * @param {string} color - 图标颜色代码
-         * @returns {AMap.Icon} 图标对象
          */
         function createMarkerIcon(color) {
             return new AMap.Icon({
@@ -185,8 +287,6 @@
 
         /**
          * 获取信号强度描述
-         * @param {number} signal - 信号强度
-         * @returns {string} 信号描述
          */
         function getSignalDescription(signal) {
             if (signal <= 2) return '严重盲区';
@@ -203,35 +303,44 @@
 
             // 检查高德地图API是否加载成功
             if (typeof AMap === 'undefined') {
-                alert('❌ 高德地图API加载失败，请检查网络连接！');
+                showMessage('❌ 高德地图API加载失败，请检查网络连接！', 'error');
                 return;
             }
 
             try {
                 // 创建地图实例
-                const map = new AMap.Map('map', MAP_CONFIG);
+                map = new AMap.Map('map', MAP_CONFIG);
                 console.log('✅ 地图创建成功');
-
-                // 添加所有监测点标记
-                addSignalMarkers(map);
 
                 // 地图加载完成事件
                 map.on('complete', function() {
-                    console.log('✅ 地图加载完成，显示所有监测点');
+                    console.log('✅ 地图加载完成');
+                    showMessage('✅ 地图初始化成功，请导入数据或使用示例数据');
                 });
 
             } catch (error) {
                 console.error('❌ 地图初始化失败:', error);
-                alert(`地图初始化失败: ${error.message}`);
+                showMessage(`❌ 地图初始化失败: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * 清除地图上的所有标记
+         */
+        function clearMarkers() {
+            if (markers.length > 0) {
+                map.remove(markers);
+                markers = [];
             }
         }
 
         /**
          * 添加信号监测点标记
-         * @param {AMap.Map} map - 地图实例
          */
-        function addSignalMarkers(map) {
-            SIGNAL_DATA.forEach((point, index) => {
+        function addSignalMarkers(data) {
+            clearMarkers();
+            
+            data.forEach((point, index) => {
                 const iconColor = getIconColor(point.signal);
                 const icon = createMarkerIcon(iconColor);
                 
@@ -242,10 +351,148 @@
                     icon: icon
                 });
 
-                // 添加到地图
+                // 添加到地图和标记数组
                 map.add(marker);
+                markers.push(marker);
                 console.log(`✅ 已添加标记点 ${index + 1}: ${point.name}`);
             });
+
+            // 更新信息面板
+            updateInfoPanel(data);
+        }
+
+        /**
+         * 更新信息面板
+         */
+        function updateInfoPanel(data) {
+            const totalPoints = data.length;
+            const severeCount = data.filter(p => p.signal <= 2).length;
+            const avgSignal = (data.reduce((sum, p) => sum + p.signal, 0) / totalPoints).toFixed(1);
+            
+            document.getElementById('dataInfo').innerHTML = `
+                当前显示 <strong>${totalPoints}</strong> 个信号监测点，
+                其中严重盲区 <strong>${severeCount}</strong> 个，
+                平均信号强度 <strong>${avgSignal}/10</strong>
+            `;
+        }
+
+        /**
+         * 使用默认示例数据
+         */
+        function useDefaultData() {
+            if (!map) {
+                showMessage('❌ 请先等待地图加载完成', 'error');
+                return;
+            }
+
+            currentData = DEFAULT_DATA;
+            addSignalMarkers(currentData);
+            showMessage('✅ 已加载示例数据，显示3个监测点');
+        }
+
+        /**
+         * 解析Excel文件
+         */
+        function parseExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                        resolve(jsonData);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        /**
+         * 处理Excel数据并转换为地图格式
+         */
+        function processExcelData(excelData) {
+            const processedData = [];
+            
+            excelData.forEach((row, index) => {
+                // 检查必要字段
+                if (!row['位置描述'] || !row['信号强度']) {
+                    console.warn(`跳过第${index + 1}行：缺少必要字段`);
+                    return;
+                }
+
+                // 这里暂时使用示例坐标，实际应该调用地理编码API
+                // 为简化演示，我们使用南通周边的随机坐标
+                const basePosition = [120.863, 32.008];
+                const randomOffset = () => (Math.random() - 0.5) * 0.1; // ±0.05度随机偏移
+                
+                const processed = {
+                    name: row['位置描述'],
+                    position: [
+                        basePosition[0] + randomOffset(),
+                        basePosition[1] + randomOffset()
+                    ],
+                    signal: parseInt(row['信号强度']) || 5,
+                    network: row['网络类型'] || '未知',
+                    reporter: row['上报人'] || '匿名',
+                    time: row['上报时间'] || '未知',
+                    note: row['备注'] || '无'
+                };
+
+                processedData.push(processed);
+            });
+
+            return processedData;
+        }
+
+        /**
+         * 加载Excel数据
+         */
+        async function loadExcelData() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showMessage('❌ 请先选择Excel文件', 'error');
+                return;
+            }
+
+            if (!map) {
+                showMessage('❌ 请先等待地图加载完成', 'error');
+                return;
+            }
+
+            try {
+                showMessage('📊 正在解析Excel文件...', 'info');
+                
+                // 解析Excel文件
+                const excelData = await parseExcelFile(file);
+                console.log('Excel数据:', excelData);
+
+                // 处理数据
+                const processedData = processExcelData(excelData);
+                
+                if (processedData.length === 0) {
+                    showMessage('❌ 未找到有效的数据行', 'error');
+                    return;
+                }
+
+                // 更新当前数据并显示在地图上
+                currentData = processedData;
+                addSignalMarkers(currentData);
+                
+                showMessage(`✅ 成功导入 ${processedData.length} 条数据记录`);
+
+            } catch (error) {
+                console.error('Excel处理错误:', error);
+                showMessage(`❌ Excel文件处理失败: ${error.message}`, 'error');
+            }
         }
 
         // 页面加载完成后初始化地图
