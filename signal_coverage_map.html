@@ -233,6 +233,47 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
+        .analysis-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 15px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        .analysis-panel h4 {
+            margin-top: 0;
+            color: #fff;
+            font-size: 18px;
+        }
+
+        .analysis-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 12px;
+            margin: 10px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .analysis-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .metric-label {
+            font-weight: 500;
+        }
+
+        .metric-value {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -308,6 +349,14 @@
                 <span id="intensityValue">10</span>
             </div>
         </div>
+        <div class="control-group">
+            <button id="smartAnalysisBtn" class="btn" onclick="runSmartAnalysis()">🧠 智能分析</button>
+            <button id="predictCoverageBtn" class="btn" onclick="predictSignalCoverage()">🔮 信号预测</button>
+        </div>
+        <div id="analysisResults" class="analysis-panel" style="display: none;">
+            <h4>📈 智能分析结果</h4>
+            <div id="analysisContent"></div>
+        </div>
     </div>
 
     <!-- 引入XLSX解析库 -->
@@ -316,11 +365,25 @@
     <script src="https://webapi.amap.com/maps?v=2.0&key=d9f68330ebc73e4856581f67deac33a5&plugin=AMap.HeatMap"></script>
     
     <script>
-        // 全局变量
-        let map = null;
-        let markers = [];
-        let currentData = [];
-        let heatmapLayer = null;
+        /**
+         * ===========================================
+         * 信号覆盖地图可视化系统
+         * Signal Coverage Mapper Visualization System
+         * 
+         * @description 基于高德地图的网络信号质量可视化工具
+         * @author Signal Coverage Mapper Team
+         * @version 1.0.0
+         * @license MIT
+         * ===========================================
+         */
+
+        // =====================================
+        // 全局变量定义
+        // =====================================
+        let map = null;                    // 高德地图实例
+        let markers = [];                  // 标记点数组
+        let currentData = [];              // 当前显示的数据
+        let heatmapLayer = null;           // 热力图图层
 
         /**
          * 生成随机的南通市信号监测数据
@@ -427,18 +490,57 @@
             return data;
         }
 
+        // =====================================
+        // 配置常量定义
+        // =====================================
+        
+        // 地图配置
+        const MAP_CONFIG = {
+            zoom: 10,                    // 缩放级别
+            center: [121.05, 32.15],     // 南通市几何中心
+            viewMode: '2D',              // 2D视图模式
+            maxZoom: 18,                 // 最大缩放级别
+            minZoom: 3                   // 最小缩放级别
+        };
+
+        // 标记点配置
+        const MARKER_CONFIG = {
+            maxDisplay: 200,             // 最大显示标记点数量
+            severeSizeMultiplier: 1.5,   // 严重盲区大小倍数
+            iconBaseSize: 20             // 基础图标大小
+        };
+
+        // 信号强度阈值配置
+        const SIGNAL_THRESHOLDS = {
+            severe: 2,                   // 严重盲区：≤2分
+            poor: 4,                     // 信号较差：3-4分
+            normal: 6,                   // 信号一般：5-6分
+            good: 10                     // 信号良好：7-10分
+        };
+
+        // 热力图配置
+        const HEATMAP_CONFIG = {
+            radius: 60,                  // 热力图半径
+            opacity: [0, 0.8],           // 透明度范围
+            clustering: {
+                distance: 15000,         // 聚类距离（米）
+                minPoints: 3             // 最小聚类点数
+            }
+        };
+
         // 默认示例数据 (1000个随机点)
         const DEFAULT_DATA = generateRandomData(1000);
 
-        // 地图配置
-        const MAP_CONFIG = {
-            zoom: 10,  // 降低缩放级别以显示更大区域
-            center: [121.05, 32.15],  // 调整中心点到南通市几何中心
-            viewMode: '2D'
-        };
+        // =====================================
+        // 工具函数模块
+        // =====================================
 
         /**
          * 显示状态消息
+         * @description 在页面上显示操作状态信息，支持成功、错误、信息等类型
+         * @param {string} message - 要显示的消息内容
+         * @param {string} type - 消息类型：success/error/info/warning
+         * @returns {void}
          */
         function showMessage(message, type = 'success') {
             const statusDiv = document.getElementById('statusMessage');
@@ -451,18 +553,24 @@
         }
 
         /**
-         * 根据信号强度获取图标颜色和大小
-         * 只使用确实可用的颜色：r(红), b(蓝)，通过大小区分其他级别
+         * 根据信号强度获取图标配置
+         * @description 根据信号强度值返回对应的颜色、大小和类型描述
+         * @param {number} signal - 信号强度值 (1-10)
+         * @returns {Object} 包含color、size、type的配置对象
+         * @note 只使用高德地图支持的颜色：r(红), b(蓝)，通过大小区分级别
          */
         function getIconConfig(signal) {
-            if (signal <= 2) {
-                return { color: 'r', size: 30, type: '严重盲区' };      // 红色大图标 - 严重盲区
-            } else if (signal <= 4) {
-                return { color: 'r', size: 20, type: '信号较差' };      // 红色小图标 - 信号较差
-            } else if (signal <= 6) {
-                return { color: 'b', size: 20, type: '信号一般' };      // 蓝色小图标 - 信号一般
+            const baseSize = MARKER_CONFIG.iconBaseSize;
+            const largeSize = Math.round(baseSize * MARKER_CONFIG.severeSizeMultiplier);
+            
+            if (signal <= SIGNAL_THRESHOLDS.severe) {
+                return { color: 'r', size: largeSize, type: '严重盲区' };
+            } else if (signal <= SIGNAL_THRESHOLDS.poor) {
+                return { color: 'r', size: baseSize, type: '信号较差' };
+            } else if (signal <= SIGNAL_THRESHOLDS.normal) {
+                return { color: 'b', size: baseSize, type: '信号一般' };
             } else {
-                return { color: 'b', size: 30, type: '信号良好' };      // 蓝色大图标 - 信号良好
+                return { color: 'b', size: largeSize, type: '信号良好' };
             }
         }
 
@@ -489,8 +597,14 @@
             return '信号良好 🔵大';
         }
 
+        // =====================================
+        // 地图操作模块
+        // =====================================
+
         /**
          * 初始化地图
+         * @description 创建高德地图实例，设置基本配置和事件监听
+         * @returns {void}
          */
         function initMap() {
             console.log('开始初始化地图...');
@@ -539,10 +653,10 @@
             
             // 如果数据量太大，进行采样显示以提高性能
             let displayData = data;
-            const MAX_MARKERS = 200; // 最大显示200个标记点
+            const maxMarkers = MARKER_CONFIG.maxDisplay;
             
-            if (data.length > MAX_MARKERS) {
-                console.log(`数据量过大(${data.length}个点)，采样显示${MAX_MARKERS}个代表性标记点`);
+            if (data.length > maxMarkers) {
+                console.log(`数据量过大(${data.length}个点)，采样显示${maxMarkers}个代表性标记点`);
                 
                 // 按信号强度分层采样，确保各种信号强度都有代表
                 const severeBlinds = data.filter(p => p.signal <= 2);
@@ -1189,6 +1303,804 @@
             // 5秒后测试热力图功能（给地图时间加载）
             setTimeout(testHeatmap, 5000);
         };
+
+        // =====================================
+        // 高级算法模块 - 提升技术价值
+        // =====================================
+
+        /**
+         * K-means聚类算法实现
+         * @description 使用K-means算法对信号监测点进行智能聚类
+         * @param {Array} data - 监测点数据
+         * @param {number} k - 聚类数量
+         * @returns {Array} 聚类结果
+         */
+        class KMeansCluster {
+            constructor(k = 8) {
+                this.k = k;
+                this.maxIterations = 100;
+                this.tolerance = 0.001;
+            }
+
+            /**
+             * 执行K-means聚类
+             */
+            cluster(data) {
+                if (data.length < this.k) {
+                    return data.map(point => ({ ...point, cluster: 0 }));
+                }
+
+                // 1. 初始化聚类中心
+                let centroids = this.initializeCentroids(data);
+                let previousCentroids;
+                let iterations = 0;
+
+                do {
+                    previousCentroids = centroids.map(c => ({ ...c }));
+                    
+                    // 2. 分配数据点到最近的聚类中心
+                    const clusters = this.assignPointsToCentroids(data, centroids);
+                    
+                    // 3. 更新聚类中心
+                    centroids = this.updateCentroids(clusters);
+                    
+                    iterations++;
+                } while (
+                    iterations < this.maxIterations && 
+                    !this.hasConverged(centroids, previousCentroids)
+                );
+
+                console.log(`🧮 K-means聚类完成，迭代${iterations}次，生成${centroids.length}个聚类中心`);
+                
+                return this.assignPointsToCentroids(data, centroids);
+            }
+
+            /**
+             * 随机初始化聚类中心
+             */
+            initializeCentroids(data) {
+                const centroids = [];
+                const used = new Set();
+                
+                for (let i = 0; i < this.k; i++) {
+                    let randomIndex;
+                    do {
+                        randomIndex = Math.floor(Math.random() * data.length);
+                    } while (used.has(randomIndex));
+                    
+                    used.add(randomIndex);
+                    centroids.push({
+                        lng: data[randomIndex].position[0],
+                        lat: data[randomIndex].position[1],
+                        signal: data[randomIndex].signal
+                    });
+                }
+                
+                return centroids;
+            }
+
+            /**
+             * 将数据点分配到最近的聚类中心
+             */
+            assignPointsToCentroids(data, centroids) {
+                return data.map(point => {
+                    let minDistance = Infinity;
+                    let closestCentroid = 0;
+                    
+                    centroids.forEach((centroid, index) => {
+                        const distance = this.calculateDistance(
+                            point.position, 
+                            [centroid.lng, centroid.lat]
+                        );
+                        
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestCentroid = index;
+                        }
+                    });
+                    
+                    return { ...point, cluster: closestCentroid, distance: minDistance };
+                });
+            }
+
+            /**
+             * 更新聚类中心
+             */
+            updateCentroids(clusteredData) {
+                const centroids = [];
+                
+                for (let i = 0; i < this.k; i++) {
+                    const clusterPoints = clusteredData.filter(point => point.cluster === i);
+                    
+                    if (clusterPoints.length === 0) continue;
+                    
+                    const avgLng = clusterPoints.reduce((sum, p) => sum + p.position[0], 0) / clusterPoints.length;
+                    const avgLat = clusterPoints.reduce((sum, p) => sum + p.position[1], 0) / clusterPoints.length;
+                    const avgSignal = clusterPoints.reduce((sum, p) => sum + p.signal, 0) / clusterPoints.length;
+                    
+                    centroids.push({
+                        lng: avgLng,
+                        lat: avgLat,
+                        signal: avgSignal
+                    });
+                }
+                
+                return centroids;
+            }
+
+            /**
+             * 检查是否收敛
+             */
+            hasConverged(current, previous) {
+                return current.every((centroid, index) => {
+                    if (!previous[index]) return false;
+                    
+                    const distance = this.calculateDistance(
+                        [centroid.lng, centroid.lat],
+                        [previous[index].lng, previous[index].lat]
+                    );
+                    
+                    return distance < this.tolerance;
+                });
+            }
+
+            /**
+             * 计算两点间欧几里得距离
+             */
+            calculateDistance(pos1, pos2) {
+                return Math.sqrt(
+                    Math.pow(pos1[0] - pos2[0], 2) + 
+                    Math.pow(pos1[1] - pos2[1], 2)
+                );
+            }
+        }
+
+        /**
+         * 信号覆盖预测算法
+         * @description 基于现有监测点，使用插值算法预测未监测区域的信号强度
+         */
+        class SignalPredictor {
+            constructor() {
+                this.influenceRadius = 0.1; // 影响半径（度）
+                this.weightPower = 2; // 反距离权重幂次
+            }
+
+            /**
+             * 使用反距离权重插值预测信号强度
+             * @param {Array} knownPoints - 已知监测点
+             * @param {Array} targetPosition - 目标位置 [lng, lat]
+             * @returns {number} 预测的信号强度
+             */
+            predictSignalStrength(knownPoints, targetPosition) {
+                if (knownPoints.length === 0) return 5; // 默认值
+
+                let weightedSum = 0;
+                let totalWeight = 0;
+
+                for (const point of knownPoints) {
+                    const distance = this.calculateDistance(targetPosition, point.position);
+                    
+                    // 如果距离太远，则不考虑其影响
+                    if (distance > this.influenceRadius) continue;
+                    
+                    // 避免除零错误
+                    if (distance < 0.0001) return point.signal;
+                    
+                    const weight = 1 / Math.pow(distance, this.weightPower);
+                    weightedSum += weight * point.signal;
+                    totalWeight += weight;
+                }
+
+                return totalWeight > 0 ? weightedSum / totalWeight : 5;
+            }
+
+            /**
+             * 生成信号覆盖预测网格
+             * @param {Array} knownPoints - 已知监测点
+             * @param {Object} bounds - 区域边界
+             * @param {number} gridSize - 网格密度
+             * @returns {Array} 预测网格数据
+             */
+            generatePredictionGrid(knownPoints, bounds, gridSize = 30) {
+                const grid = [];
+                const lngStep = (bounds.maxLng - bounds.minLng) / gridSize;
+                const latStep = (bounds.maxLat - bounds.minLat) / gridSize;
+
+                for (let i = 0; i <= gridSize; i++) {
+                    for (let j = 0; j <= gridSize; j++) {
+                        const lng = bounds.minLng + i * lngStep;
+                        const lat = bounds.minLat + j * latStep;
+                        
+                        const predictedSignal = this.predictSignalStrength(
+                            knownPoints, 
+                            [lng, lat]
+                        );
+
+                        grid.push({
+                            position: [lng, lat],
+                            signal: predictedSignal,
+                            confidence: this.calculateConfidence(knownPoints, [lng, lat])
+                        });
+                    }
+                }
+
+                console.log(`🎯 生成${grid.length}个预测点的信号覆盖网格`);
+                return grid;
+            }
+
+            /**
+             * 计算预测置信度
+             */
+            calculateConfidence(knownPoints, targetPosition) {
+                const nearbyPoints = knownPoints.filter(point => {
+                    const distance = this.calculateDistance(targetPosition, point.position);
+                    return distance <= this.influenceRadius;
+                });
+
+                // 置信度基于附近监测点的数量和距离
+                const confidence = Math.min(1, nearbyPoints.length / 5);
+                return confidence;
+            }
+
+            calculateDistance(pos1, pos2) {
+                return Math.sqrt(
+                    Math.pow(pos1[0] - pos2[0], 2) + 
+                    Math.pow(pos1[1] - pos2[1], 2)
+                );
+            }
+        }
+
+        /**
+         * 盲区检测算法
+         * @description 使用凸包算法和密度分析识别信号盲区
+         */
+        class BlindSpotDetector {
+            constructor() {
+                this.blindSpotThreshold = 3; // 盲区信号强度阈值
+                this.minDensity = 0.1; // 最小密度阈值
+            }
+
+            /**
+             * 检测潜在的信号盲区
+             * @param {Array} data - 监测点数据
+             * @returns {Array} 盲区区域
+             */
+            detectBlindSpots(data) {
+                // 1. 筛选出信号较差的点
+                const weakSignalPoints = data.filter(point => 
+                    point.signal <= this.blindSpotThreshold
+                );
+
+                if (weakSignalPoints.length < 3) {
+                    return [];
+                }
+
+                // 2. 对弱信号点进行聚类
+                const kmeans = new KMeansCluster(Math.min(5, Math.floor(weakSignalPoints.length / 3)));
+                const clusteredPoints = kmeans.cluster(weakSignalPoints);
+
+                // 3. 为每个聚类生成盲区边界
+                const blindSpots = [];
+                const clusterMap = new Map();
+
+                clusteredPoints.forEach(point => {
+                    if (!clusterMap.has(point.cluster)) {
+                        clusterMap.set(point.cluster, []);
+                    }
+                    clusterMap.get(point.cluster).push(point);
+                });
+
+                clusterMap.forEach((points, clusterId) => {
+                    if (points.length >= 3) { // 至少3个点才能形成区域
+                        const boundary = this.generateBlindSpotBoundary(points);
+                        blindSpots.push({
+                            id: clusterId,
+                            points: points,
+                            boundary: boundary,
+                            avgSignal: points.reduce((sum, p) => sum + p.signal, 0) / points.length,
+                            area: this.calculateArea(boundary),
+                            severity: this.calculateSeverity(points)
+                        });
+                    }
+                });
+
+                console.log(`🔍 检测到${blindSpots.length}个潜在盲区`);
+                return blindSpots;
+            }
+
+            /**
+             * 生成盲区边界（简化凸包算法）
+             */
+            generateBlindSpotBoundary(points) {
+                if (points.length < 3) return [];
+
+                // 找到最左下角的点作为起点
+                let start = points.reduce((min, point) => {
+                    if (point.position[1] < min.position[1] || 
+                        (point.position[1] === min.position[1] && point.position[0] < min.position[0])) {
+                        return point;
+                    }
+                    return min;
+                });
+
+                // 使用Graham扫描算法的简化版本
+                const sortedPoints = points
+                    .filter(p => p !== start)
+                    .sort((a, b) => {
+                        const angleA = Math.atan2(a.position[1] - start.position[1], a.position[0] - start.position[0]);
+                        const angleB = Math.atan2(b.position[1] - start.position[1], b.position[0] - start.position[0]);
+                        return angleA - angleB;
+                    });
+
+                const hull = [start];
+                for (const point of sortedPoints) {
+                    while (hull.length > 1 && this.crossProduct(hull[hull.length-2], hull[hull.length-1], point) <= 0) {
+                        hull.pop();
+                    }
+                    hull.push(point);
+                }
+
+                return hull.map(p => p.position);
+            }
+
+            /**
+             * 计算叉积（用于凸包算法）
+             */
+            crossProduct(o, a, b) {
+                return (a.position[0] - o.position[0]) * (b.position[1] - o.position[1]) - 
+                       (a.position[1] - o.position[1]) * (b.position[0] - o.position[0]);
+            }
+
+            /**
+             * 计算区域面积
+             */
+            calculateArea(boundary) {
+                if (boundary.length < 3) return 0;
+                
+                let area = 0;
+                for (let i = 0; i < boundary.length; i++) {
+                    const j = (i + 1) % boundary.length;
+                    area += boundary[i][0] * boundary[j][1];
+                    area -= boundary[j][0] * boundary[i][1];
+                }
+                return Math.abs(area) / 2;
+            }
+
+            /**
+             * 计算盲区严重程度
+             */
+            calculateSeverity(points) {
+                const avgSignal = points.reduce((sum, p) => sum + p.signal, 0) / points.length;
+                const density = points.length;
+                
+                // 综合信号强度和密度计算严重程度
+                return Math.max(0, Math.min(10, (4 - avgSignal) * density * 0.5));
+            }
+        }
+
+        // =====================================
+        // 实例化高级算法类
+        // =====================================
+        const signalPredictor = new SignalPredictor();
+        const blindSpotDetector = new BlindSpotDetector();
+
+        // =====================================
+        // 智能分析功能模块
+        // =====================================
+
+        /**
+         * 执行智能分析
+         * @description 综合运用多种算法分析信号覆盖状况
+         */
+        async function runSmartAnalysis() {
+            if (!currentData || currentData.length === 0) {
+                showMessage('❌ 请先导入数据', 'error');
+                return;
+            }
+
+            showMessage('🧠 正在进行智能分析...', 'info');
+            
+            try {
+                // 1. 基础统计分析
+                const basicStats = calculateBasicStatistics(currentData);
+                
+                // 2. 聚类分析
+                const kmeans = new KMeansCluster(6);
+                const clusteredData = kmeans.cluster(currentData);
+                const clusterAnalysis = analyzeClusterDistribution(clusteredData);
+                
+                // 3. 盲区检测
+                const blindSpots = blindSpotDetector.detectBlindSpots(currentData);
+                
+                // 4. 信号分布分析
+                const distributionAnalysis = analyzeSignalDistribution(currentData);
+                
+                // 5. 覆盖质量评估
+                const coverageQuality = assessCoverageQuality(currentData);
+                
+                // 6. 优化建议
+                const recommendations = generateRecommendations({
+                    basicStats,
+                    clusterAnalysis,
+                    blindSpots,
+                    distributionAnalysis,
+                    coverageQuality
+                });
+
+                // 显示分析结果
+                displayAnalysisResults({
+                    basicStats,
+                    clusterAnalysis,
+                    blindSpots,
+                    distributionAnalysis,
+                    coverageQuality,
+                    recommendations
+                });
+
+                showMessage('✅ 智能分析完成', 'success');
+                
+            } catch (error) {
+                console.error('智能分析失败:', error);
+                showMessage('❌ 智能分析失败', 'error');
+            }
+        }
+
+        /**
+         * 计算基础统计信息
+         */
+        function calculateBasicStatistics(data) {
+            const signals = data.map(d => d.signal);
+            const total = signals.length;
+            const sum = signals.reduce((a, b) => a + b, 0);
+            const avg = sum / total;
+            
+            const sortedSignals = [...signals].sort((a, b) => a - b);
+            const median = total % 2 === 0 
+                ? (sortedSignals[total/2 - 1] + sortedSignals[total/2]) / 2
+                : sortedSignals[Math.floor(total/2)];
+            
+            const variance = signals.reduce((sum, signal) => sum + Math.pow(signal - avg, 2), 0) / total;
+            const stdDev = Math.sqrt(variance);
+            
+            const severeBlinds = data.filter(d => d.signal <= 2).length;
+            const poorSignal = data.filter(d => d.signal >= 3 && d.signal <= 4).length;
+            const normalSignal = data.filter(d => d.signal >= 5 && d.signal <= 6).length;
+            const goodSignal = data.filter(d => d.signal >= 7).length;
+
+            return {
+                total,
+                average: avg,
+                median,
+                standardDeviation: stdDev,
+                minimum: Math.min(...signals),
+                maximum: Math.max(...signals),
+                severeBlinds,
+                poorSignal,
+                normalSignal,
+                goodSignal,
+                severeBlindRate: (severeBlinds / total * 100),
+                goodSignalRate: (goodSignal / total * 100)
+            };
+        }
+
+        /**
+         * 分析聚类分布
+         */
+        function analyzeClusterDistribution(clusteredData) {
+            const clusterMap = new Map();
+            
+            clusteredData.forEach(point => {
+                if (!clusterMap.has(point.cluster)) {
+                    clusterMap.set(point.cluster, []);
+                }
+                clusterMap.get(point.cluster).push(point);
+            });
+
+            const clusters = [];
+            clusterMap.forEach((points, clusterId) => {
+                const avgSignal = points.reduce((sum, p) => sum + p.signal, 0) / points.length;
+                const center = calculateClusterCenter(points);
+                
+                clusters.push({
+                    id: clusterId,
+                    size: points.length,
+                    avgSignal: avgSignal,
+                    center: center,
+                    quality: avgSignal >= 7 ? '优秀' : avgSignal >= 5 ? '良好' : avgSignal >= 3 ? '一般' : '差'
+                });
+            });
+
+            return {
+                clusterCount: clusters.length,
+                clusters: clusters,
+                avgClusterSize: clusters.reduce((sum, c) => sum + c.size, 0) / clusters.length,
+                bestCluster: clusters.reduce((best, current) => 
+                    current.avgSignal > best.avgSignal ? current : best
+                ),
+                worstCluster: clusters.reduce((worst, current) => 
+                    current.avgSignal < worst.avgSignal ? current : worst
+                )
+            };
+        }
+
+        /**
+         * 分析信号分布
+         */
+        function analyzeSignalDistribution(data) {
+            const networkTypes = {};
+            data.forEach(point => {
+                if (!networkTypes[point.network]) {
+                    networkTypes[point.network] = { count: 0, totalSignal: 0 };
+                }
+                networkTypes[point.network].count++;
+                networkTypes[point.network].totalSignal += point.signal;
+            });
+
+            // 计算各网络类型的平均信号强度
+            Object.keys(networkTypes).forEach(type => {
+                networkTypes[type].avgSignal = networkTypes[type].totalSignal / networkTypes[type].count;
+            });
+
+            // 地理分布分析
+            const bounds = {
+                minLng: Math.min(...data.map(d => d.position[0])),
+                maxLng: Math.max(...data.map(d => d.position[0])),
+                minLat: Math.min(...data.map(d => d.position[1])),
+                maxLat: Math.max(...data.map(d => d.position[1]))
+            };
+
+            const coverage = {
+                longitudeSpan: bounds.maxLng - bounds.minLng,
+                latitudeSpan: bounds.maxLat - bounds.minLat,
+                centerPoint: [(bounds.minLng + bounds.maxLng) / 2, (bounds.minLat + bounds.maxLat) / 2]
+            };
+
+            return {
+                networkTypes,
+                coverage,
+                bounds
+            };
+        }
+
+        /**
+         * 评估覆盖质量
+         */
+        function assessCoverageQuality(data) {
+            const basicStats = calculateBasicStatistics(data);
+            
+            // 计算覆盖质量得分 (0-100)
+            let qualityScore = 0;
+            
+            // 平均信号强度权重 40%
+            qualityScore += (basicStats.average / 10) * 40;
+            
+            // 严重盲区率权重 30% (越少越好)
+            qualityScore += (1 - basicStats.severeBlindRate / 100) * 30;
+            
+            // 信号稳定性权重 20% (标准差越小越好，最大10分)
+            const stabilityScore = Math.max(0, 10 - basicStats.standardDeviation) / 10;
+            qualityScore += stabilityScore * 20;
+            
+            // 好信号比例权重 10%
+            qualityScore += (basicStats.goodSignalRate / 100) * 10;
+
+            // 确定质量等级
+            let qualityGrade;
+            if (qualityScore >= 85) qualityGrade = 'A+ 优秀';
+            else if (qualityScore >= 75) qualityGrade = 'A 良好';
+            else if (qualityScore >= 65) qualityGrade = 'B+ 中上';
+            else if (qualityScore >= 55) qualityGrade = 'B 中等';
+            else if (qualityScore >= 45) qualityGrade = 'C+ 中下';
+            else if (qualityScore >= 35) qualityGrade = 'C 较差';
+            else qualityGrade = 'D 差';
+
+            return {
+                score: qualityScore,
+                grade: qualityGrade,
+                strengths: [],
+                weaknesses: []
+            };
+        }
+
+        /**
+         * 生成优化建议
+         */
+        function generateRecommendations(analysisData) {
+            const recommendations = [];
+            const { basicStats, blindSpots, coverageQuality } = analysisData;
+
+            // 基于盲区数量的建议
+            if (basicStats.severeBlindRate > 20) {
+                recommendations.push({
+                    type: 'critical',
+                    title: '严重盲区过多',
+                    description: `检测到${basicStats.severeBlinds}个严重盲区（${basicStats.severeBlindRate.toFixed(1)}%），建议优先部署基站`,
+                    priority: 'high'
+                });
+            }
+
+            // 基于信号质量的建议
+            if (basicStats.average < 5) {
+                recommendations.push({
+                    type: 'warning',
+                    title: '整体信号质量偏低',
+                    description: '平均信号强度仅为' + basicStats.average.toFixed(1) + '分，建议全面优化网络覆盖',
+                    priority: 'high'
+                });
+            }
+
+            // 基于盲区分布的建议
+            if (blindSpots.length > 0) {
+                recommendations.push({
+                    type: 'info',
+                    title: '盲区聚集分析',
+                    description: `发现${blindSpots.length}个盲区聚集区域，建议针对性部署小基站或中继设备`,
+                    priority: 'medium'
+                });
+            }
+
+            // 基于覆盖质量的建议
+            if (coverageQuality.score < 60) {
+                recommendations.push({
+                    type: 'warning',
+                    title: '网络覆盖质量需要改善',
+                    description: `当前覆盖质量得分${coverageQuality.score.toFixed(1)}分，等级${coverageQuality.grade}`,
+                    priority: 'medium'
+                });
+            }
+
+            return recommendations;
+        }
+
+        /**
+         * 显示分析结果
+         */
+        function displayAnalysisResults(results) {
+            const { basicStats, clusterAnalysis, blindSpots, coverageQuality, recommendations } = results;
+            
+            const content = `
+                <div class="analysis-item">
+                    <h5>📊 基础统计</h5>
+                    <div class="analysis-metric">
+                        <span class="metric-label">监测点总数</span>
+                        <span class="metric-value">${basicStats.total}</span>
+                    </div>
+                    <div class="analysis-metric">
+                        <span class="metric-label">平均信号强度</span>
+                        <span class="metric-value">${basicStats.average.toFixed(2)}/10</span>
+                    </div>
+                    <div class="analysis-metric">
+                        <span class="metric-label">严重盲区</span>
+                        <span class="metric-value">${basicStats.severeBlinds} (${basicStats.severeBlindRate.toFixed(1)}%)</span>
+                    </div>
+                    <div class="analysis-metric">
+                        <span class="metric-label">信号稳定性</span>
+                        <span class="metric-value">σ = ${basicStats.standardDeviation.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <div class="analysis-item">
+                    <h5>🎯 聚类分析</h5>
+                    <div class="analysis-metric">
+                        <span class="metric-label">聚类数量</span>
+                        <span class="metric-value">${clusterAnalysis.clusterCount}</span>
+                    </div>
+                    <div class="analysis-metric">
+                        <span class="metric-label">平均聚类大小</span>
+                        <span class="metric-value">${clusterAnalysis.avgClusterSize.toFixed(0)}个点</span>
+                    </div>
+                    <div class="analysis-metric">
+                        <span class="metric-label">最佳聚类信号</span>
+                        <span class="metric-value">${clusterAnalysis.bestCluster.avgSignal.toFixed(1)}/10</span>
+                    </div>
+                </div>
+
+                <div class="analysis-item">
+                    <h5>🔍 盲区检测</h5>
+                    <div class="analysis-metric">
+                        <span class="metric-label">检测到盲区</span>
+                        <span class="metric-value">${blindSpots.length}个</span>
+                    </div>
+                    ${blindSpots.length > 0 ? `
+                    <div class="analysis-metric">
+                        <span class="metric-label">最严重盲区</span>
+                        <span class="metric-value">严重度 ${Math.max(...blindSpots.map(b => b.severity)).toFixed(1)}</span>
+                    </div>` : ''}
+                </div>
+
+                <div class="analysis-item">
+                    <h5>⭐ 覆盖质量评估</h5>
+                    <div class="analysis-metric">
+                        <span class="metric-label">质量得分</span>
+                        <span class="metric-value">${coverageQuality.score.toFixed(1)}/100</span>
+                    </div>
+                    <div class="analysis-metric">
+                        <span class="metric-label">质量等级</span>
+                        <span class="metric-value">${coverageQuality.grade}</span>
+                    </div>
+                </div>
+
+                <div class="analysis-item">
+                    <h5>💡 优化建议</h5>
+                    ${recommendations.map(rec => `
+                        <div style="margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 6px;">
+                            <strong>${rec.title}</strong><br>
+                            <small>${rec.description}</small>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            document.getElementById('analysisContent').innerHTML = content;
+            document.getElementById('analysisResults').style.display = 'block';
+        }
+
+        /**
+         * 预测信号覆盖
+         */
+        function predictSignalCoverage() {
+            if (!currentData || currentData.length === 0) {
+                showMessage('❌ 请先导入数据', 'error');
+                return;
+            }
+
+            showMessage('🔮 正在进行信号覆盖预测...', 'info');
+
+            try {
+                // 计算预测区域边界
+                const bounds = {
+                    minLng: Math.min(...currentData.map(d => d.position[0])) - 0.05,
+                    maxLng: Math.max(...currentData.map(d => d.position[0])) + 0.05,
+                    minLat: Math.min(...currentData.map(d => d.position[1])) - 0.05,
+                    maxLat: Math.max(...currentData.map(d => d.position[1])) + 0.05
+                };
+
+                // 生成预测网格
+                const predictionGrid = signalPredictor.generatePredictionGrid(currentData, bounds, 25);
+                
+                // 将预测结果叠加到热力图
+                updateHeatmapWithPrediction(predictionGrid);
+                
+                showMessage('✅ 信号覆盖预测完成，预测结果已显示在热力图中', 'success');
+                
+                // 自动开启热力图显示
+                document.getElementById('heatmapSwitch').checked = true;
+                showHeatmap();
+                
+            } catch (error) {
+                console.error('信号预测失败:', error);
+                showMessage('❌ 信号预测失败', 'error');
+            }
+        }
+
+        /**
+         * 更新热力图包含预测数据
+         */
+        function updateHeatmapWithPrediction(predictionGrid) {
+            // 这里可以将预测数据与实际数据结合
+            // 为了演示，我们将预测数据添加到当前数据中
+            const combinedData = [...currentData];
+            
+            // 添加高置信度的预测点
+            predictionGrid.forEach(pred => {
+                if (pred.confidence > 0.5) { // 只添加高置信度的预测
+                    combinedData.push({
+                        position: pred.position,
+                        signal: pred.signal,
+                        isPredicted: true
+                    });
+                }
+            });
+
+            console.log(`🔮 结合${predictionGrid.length}个预测点进行热力图更新`);
+            
+            // 重新生成热力图
+            const heatData = generateHeatmapData(combinedData);
+            
+            if (heatmapLayer) {
+                heatmapLayer.setDataSet({ data: heatData, max: 200 });
+            }
+        }
     </script>
 </body>
 </html> 
