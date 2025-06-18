@@ -89,53 +89,92 @@ from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import pandas as pd
 
+# 添加src目录到Python路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 class EnhancedLogger:
     """增强的日志系统"""
     
-    def __init__(self, gui_callback=None):
-        self.gui_callback = gui_callback
-        self.log_level = logging.INFO
+    def __init__(self, name="SignalMapper", log_file="../data/signal_mapper.log"):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
         
-        # 配置日志
-        logging.basicConfig(
-            level=self.log_level,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler('signal_mapper.log', encoding='utf-8'),
-                logging.StreamHandler()
-            ]
-        )
-        self.logger = logging.getLogger(__name__)
+        # 避免重复添加处理器
+        if not self.logger.handlers:
+            # 文件处理器
+            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            file_handler.setLevel(logging.DEBUG)
+            
+            # 格式化器
+            formatter = logging.Formatter(
+                '%(asctime)s | %(levelname)-8s | %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+        
+        self.gui_text_widget = None
+    
+    def set_gui_widget(self, text_widget):
+        """设置GUI文本组件用于实时显示日志"""
+        self.gui_text_widget = text_widget
+    
+    def _log_to_gui(self, level, message):
+        """将日志输出到GUI"""
+        if self.gui_text_widget:
+            try:
+                timestamp = datetime.now().strftime('%H:%M:%S')
+                
+                # 根据日志级别设置颜色
+                colors = {
+                    'DEBUG': 'gray',
+                    'INFO': 'blue',
+                    'WARNING': 'orange',
+                    'ERROR': 'red',
+                    'CRITICAL': 'purple'
+                }
+                color = colors.get(level, 'black')
+                
+                # 插入彩色日志
+                self.gui_text_widget.insert(tk.END, f"[{timestamp}] ", 'timestamp')
+                self.gui_text_widget.insert(tk.END, f"{level:<8} ", level.lower())
+                self.gui_text_widget.insert(tk.END, f"{message}\n", 'message')
+                
+                # 配置标签颜色
+                self.gui_text_widget.tag_config('timestamp', foreground='gray')
+                self.gui_text_widget.tag_config(level.lower(), foreground=color, font=('Consolas', 9, 'bold'))
+                self.gui_text_widget.tag_config('message', foreground='black')
+                
+                # 自动滚动到底部
+                self.gui_text_widget.see(tk.END)
+                
+                # 限制显示行数，避免内存占用过多
+                lines = int(self.gui_text_widget.index('end-1c').split('.')[0])
+                if lines > 1000:
+                    self.gui_text_widget.delete('1.0', '500.0')
+                    
+            except Exception:
+                pass  # GUI组件可能已被销毁
     
     def debug(self, message):
-        """调试级别日志"""
         self.logger.debug(message)
-        if self.gui_callback:
-            self.gui_callback(f"🔍 DEBUG: {message}", 'debug')
+        self._log_to_gui('DEBUG', message)
     
     def info(self, message):
-        """信息级别日志"""
         self.logger.info(message)
-        if self.gui_callback:
-            self.gui_callback(f"ℹ️ {message}", 'info')
+        self._log_to_gui('INFO', message)
     
     def warning(self, message):
-        """警告级别日志"""
         self.logger.warning(message)
-        if self.gui_callback:
-            self.gui_callback(f"⚠️ WARNING: {message}", 'warning')
+        self._log_to_gui('WARNING', message)
     
     def error(self, message):
-        """错误级别日志"""
         self.logger.error(message)
-        if self.gui_callback:
-            self.gui_callback(f"❌ ERROR: {message}", 'error')
+        self._log_to_gui('ERROR', message)
     
     def critical(self, message):
-        """严重错误级别日志"""
         self.logger.critical(message)
-        if self.gui_callback:
-            self.gui_callback(f"🚨 CRITICAL: {message}", 'critical')
+        self._log_to_gui('CRITICAL', message)
 
 class SystemDiagnostics:
     """系统环境检测工具"""
@@ -259,7 +298,8 @@ class SignalMapperGUI:
         self.setup_ui()
         
         # 现在可以安全地初始化日志器
-        self.logger = EnhancedLogger(self.log_message)
+        self.logger = EnhancedLogger()
+        self.logger.set_gui_widget(self.status_text)
         
         # 初始化时进行系统检查
         self.perform_startup_diagnostics()
@@ -534,30 +574,21 @@ psutil: {'✅ 已安装' if deps['psutil'] else '❌ 未安装'}
             self.logger.error(f"更新系统信息失败: {str(e)}")
         
     def log_message(self, message, level='info'):
-        """增强的日志记录功能"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
+        """兼容性日志记录功能 - 重定向到增强日志系统"""
+        if hasattr(self, 'logger'):
+            # 使用新的增强日志系统
+            if level == 'debug':
+                self.logger.debug(message)
+            elif level == 'warning':
+                self.logger.warning(message)
+            elif level == 'error':
+                self.logger.error(message)
+            elif level == 'critical':
+                self.logger.critical(message)
+            else:
+                self.logger.info(message)
         
-        # 根据级别设置颜色
-        colors = {
-            'debug': '#00ffff',
-            'info': '#00ff00',
-            'warning': '#ffff00',
-            'error': '#ff0000',
-            'critical': '#ff00ff'
-        }
-        
-        color = colors.get(level, '#00ff00')
-        
-        self.status_text.config(state='normal')
-        self.status_text.insert('end', f"[{timestamp}] {message}\n")
-        
-        # 为不同级别的消息设置颜色（简化版本）
-        if level in ['error', 'critical']:
-            self.status_text.insert('end', "\n")
-        
-        self.status_text.config(state='disabled')
-        self.status_text.see('end')
-        
+        # 更新状态栏
         self.status_bar.config(text=f"📍 {message}")
         self.root.update()
         
@@ -570,7 +601,7 @@ psutil: {'✅ 已安装' if deps['psutil'] else '❌ 未安装'}
             self.update_system_info()
             
             # 检查关键文件
-            required_files = ['signal_coverage_map.html']
+            required_files = ['../static/signal_coverage_map.html']
             missing_files = [f for f in required_files if not os.path.exists(f)]
             
             if missing_files:
@@ -666,7 +697,7 @@ psutil: {'✅ 已安装' if deps['psutil'] else '❌ 未安装'}
             
         try:
             # 检查关键文件
-            if not os.path.exists('signal_coverage_map.html'):
+            if not os.path.exists('../static/signal_coverage_map.html'):
                 self.logger.error("缺少关键文件: signal_coverage_map.html")
                 messagebox.showerror("错误", "缺少关键文件 signal_coverage_map.html\n请确保文件存在")
                 return
@@ -674,10 +705,10 @@ psutil: {'✅ 已安装' if deps['psutil'] else '❌ 未安装'}
             self.server_port = self.find_free_port()
             self.logger.info(f"正在启动HTTP服务器，端口: {self.server_port}")
             
-            # 切换到脚本目录
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(script_dir)
-            self.logger.debug(f"工作目录: {script_dir}")
+            # 切换到项目根目录以便访问static文件
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            os.chdir(project_root)
+            self.logger.debug(f"工作目录: {project_root}")
             
             class CustomHandler(SimpleHTTPRequestHandler):
                 def __init__(self, *args, **kwargs):
@@ -767,14 +798,14 @@ psutil: {'✅ 已安装' if deps['psutil'] else '❌ 未安装'}
             messagebox.showwarning("警告", "请先点击'启动服务器'按钮")
             return
             
-        url = f"http://localhost:{self.server_port}/signal_coverage_map.html"
+        url = f"http://localhost:{self.server_port}/static/signal_coverage_map.html"
         self.logger.info(f"正在打开浏览器: {url}")
         
         try:
             # 检查网页文件是否存在
-            if not os.path.exists('signal_coverage_map.html'):
+            if not os.path.exists('static/signal_coverage_map.html'):
                 self.logger.error("网页文件不存在")
-                messagebox.showerror("错误", "signal_coverage_map.html 文件不存在")
+                messagebox.showerror("错误", "static/signal_coverage_map.html 文件不存在")
                 return
                 
             webbrowser.open(url)
@@ -932,9 +963,12 @@ psutil: {'✅ 已安装' if deps['psutil'] else '❌ 未安装'}
                     ])
                 })
             
-            # 保存为Excel文件
+            # 保存为Excel文件到data目录
             df = pd.DataFrame(sample_data)
-            file_path = 'example_data.xlsx'
+            file_path = '../data/example_data.xlsx'
+            
+            # 确保data目录存在
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
             self.logger.debug(f"准备写入{len(sample_data)}条记录到{file_path}")
             df.to_excel(file_path, index=False)

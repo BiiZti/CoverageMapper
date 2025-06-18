@@ -1,201 +1,216 @@
-# 🗺️ 信号覆盖地图分析器 (Signal Coverage Mapper)
+# 🗺️ 信号覆盖地图分析器 (CoverageMapper)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.7+-blue.svg)](https://www.python.org/)
-[![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)](https://html.spec.whatwg.org/)
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/your-username/CoverageMapper)
 
-基于高德地图的智能信号覆盖分析工具，支持Excel数据导入、热力图可视化和智能盲区检测。
+一个专业的信号覆盖数据分析和可视化工具，支持从Excel数据生成交互式热力图，帮助分析通信信号盲区分布和优化网络覆盖。
 
-## ✨ 核心特性
+## ✨ 主要特性
 
-### 🚀 一键启动体验
-- **超简单启动**：双击 `start_gui.bat` 或运行 `python signal_mapper_gui.py`
-- **一键完成**：点击"🚀 一键启动完整服务"即可完成所有配置
-- **自动服务**：内置HTTP服务器，自动端口检测，浏览器自动打开
-- **示例数据**：自动生成南通市测试数据，立即体验完整功能
+🎯 **一键启动**: 自动化的完整工作流程  
+📊 **数据导入**: 支持Excel格式的信号数据  
+🗺️ **地图可视化**: 基于高德地图的交互式热力图  
+🔥 **热力分析**: 直观显示信号强度分布  
+📍 **标记点**: 精确显示监测点位置  
+🎛️ **筛选功能**: 支持按网络类型、信号强度筛选  
+📈 **智能分析**: K-means聚类和盲区检测  
+🔧 **系统诊断**: 完整的故障排除和日志系统  
+🚀 **企业级**: 增强的错误处理和技术支持
 
-### 🗺️ 智能地图分析
-- **数据导入**：支持Excel(.xlsx/.xls)格式，智能解析信号监测数据
-- **多重可视化**：信号强度标记、区域热力图、实时统计面板
-- **智能算法**：K-means聚类、IDW插值预测、凸包盲区检测
-- **交互控制**：热力图开关、信号筛选、多维度分析
-
-### 🛠️ 企业级功能
-- **系统诊断**：自动检测Python环境、依赖版本、端口可用性
-- **增强日志**：五级日志系统，文件+GUI双输出，彩色分类显示
-- **错误诊断**：智能异常分析，预设解决方案，故障自愈功能
-- **技术支持**：完整文档体系，API参考，故障排除指南
-
-## 🚀 快速启动（30秒体验）
-
-### Windows用户（推荐）
-```bash
-# 方法1：双击启动
-双击 start_gui.bat
-
-# 方法2：桌面快捷方式
-双击 创建桌面快捷方式.bat 创建快捷方式，然后双击桌面图标
-```
-
-### 跨平台启动
-```bash
-# 安装依赖
-pip install -r requirements.txt
-
-# 启动GUI程序
-python signal_mapper_gui.py
-```
-
-### 超简单操作流程
-1. 🎯 **启动程序**：双击 `start_gui.bat`
-2. 🚀 **一键启动**：点击橙色大按钮"🚀 一键启动完整服务"
-3. ⏱️ **等待自动**：程序自动生成示例数据、启动服务器、打开浏览器
-4. ✅ **立即查看**：在浏览器中查看南通市信号覆盖地图和热力图
-
-> **💡 提示**：首次使用建议直接一键启动，体验完整功能后再探索其他选项
-
-## 📊 数据格式要求
-
-### Excel文件格式
-| 列名 | 类型 | 示例 | 说明 |
-|------|------|------|------|
-| 位置描述 | 文本 | 南通市崇川区南大街 | 监测点名称 |
-| 详细地址 | 文本 | 江苏省南通市崇川区南大街128号 | 完整地址信息 |
-| 网络类型 | 文本 | 5G/4G/3G | 网络制式 |
-| 信号强度 | 数字 | 1-10 | 信号评分(1最弱,10最强) |
-| 上报时间 | 日期 | 2024-01-15 10:30 | 数据采集时间 |
-| 上报人 | 文本 | 张三 | 采集人员 |
-| 备注 | 文本 | 地下商场信号较弱 | 补充说明 |
-
-### 示例数据
-程序内置南通市100个监测点的示例数据，覆盖：
-- 🏢 商业中心、住宅区、工业园区
-- 🌐 5G/4G网络类型
-- 📊 完整的信号强度分布(1-10分)
-- 📍 真实地理坐标和地址信息
-
-## 🎮 界面操作指南
-
-### 主控制面板
-- **🚀 一键启动完整服务**：最重要的按钮，新用户首选
-- **生成示例数据**：创建南通市测试数据
-- **选择Excel文件**：导入自己的信号数据
-- **启动/停止服务器**：手动控制HTTP服务
-- **打开网页**：手动打开浏览器
-
-### 实时信息面板
-- **运行状态**：绿色文字显示操作日志和进度
-- **系统信息**：显示Python版本、依赖状态、端口信息
-- **诊断工具**：系统检测、错误分析、日志查看
-
-### 网页端操作
-- **加载数据**：上传Excel文件或使用示例数据
-- **热力图开关**：显示/隐藏区域信号强度分布
-- **标记点开关**：显示/隐藏具体监测点位置
-- **信号筛选**：按强度过滤显示监测点
-- **智能分析**：K-means聚类、盲区检测、覆盖率统计
-
-## 🔧 故障排除
-
-### 常见问题解决
-| 问题 | 症状 | 解决方案 |
-|------|------|----------|
-| Python未安装 | 程序无法启动 | 下载安装Python 3.7+，勾选"Add to PATH" |
-| 端口被占用 | 服务器启动失败 | 程序会自动尝试其他端口(8889,8890...) |
-| 浏览器未打开 | 服务启动但无网页 | 手动访问GUI显示的地址，或点击"打开网页" |
-| 地图无法显示 | 网页空白或报错 | 检查网络连接，确保能访问高德地图API |
-| Excel导入失败 | 数据加载报错 | 检查文件格式和列名，参考示例数据格式 |
-
-### 高级诊断工具
-程序内置完整的诊断系统：
-- **系统检测**：Python版本、依赖库、网络连接
-- **端口扫描**：自动检测可用端口，避免冲突
-- **日志分析**：五级日志记录，彩色分类显示
-- **错误诊断**：智能异常分析，提供预设解决方案
-
-## 🛠️ 技术架构
-
-### 后端技术栈
-- **Python 3.7+**：核心开发语言
-- **Tkinter**：跨平台GUI框架
-- **HTTP Server**：内置Web服务器，支持CORS
-- **Pandas/OpenPyXL**：数据处理和Excel解析
-- **Requests/Threading**：网络请求和多线程
-
-### 前端技术栈
-- **HTML5/CSS3/ES6+**：现代Web技术
-- **高德地图API 2.0**：地图服务和可视化
-- **XLSX.js**：客户端Excel解析
-- **响应式设计**：支持桌面端和移动端
-
-### 核心算法
-- **K-means聚类**：智能分组监测点
-- **IDW插值**：预测未监测区域信号强度  
-- **凸包算法**：计算信号盲区边界
-- **热力图渲染**：多维度信号强度可视化
-
-## 📁 项目结构
+## 🏗️ 项目结构
 
 ```
 CoverageMapper/
-├── signal_mapper_gui.py     # 主GUI程序
-├── signal_mapper.py         # 核心信号分析模块
-├── generate_amap_html.py    # 地图HTML生成器
-├── start_gui.bat           # Windows启动脚本
-├── requirements.txt        # Python依赖列表
-├── example_data.xlsx       # 示例数据文件
-├── config_template.py      # 配置模板
-├── TECHNICAL_DOCUMENTATION.md  # 技术文档
-├── SECURITY_GUIDE.md       # 安全指南
-└── docs/                   # 其他文档
+├── 📁 src/                     # 源代码目录
+│   ├── signal_mapper_gui.py    # 主GUI程序
+│   ├── signal_mapper.py        # 核心业务逻辑
+│   └── generate_amap_html.py    # HTML生成模块
+├── 📁 static/                  # 静态文件目录
+│   └── signal_coverage_map.html # 生成的地图网页
+├── 📁 data/                    # 数据文件目录
+│   ├── example_data.xlsx       # 示例数据
+│   └── signal_mapper.log       # 日志文件
+├── 📁 docs/                    # 文档目录
+│   ├── TECHNICAL_DOCUMENTATION.md
+│   ├── SECURITY_GUIDE.md
+│   ├── CONTRIBUTING.md
+│   └── CLA.md
+├── 📁 scripts/                 # 脚本目录
+│   ├── start_gui.bat           # Windows启动脚本
+│   └── 创建桌面快捷方式.bat    # 快捷方式脚本
+├── 📁 .github/                 # GitHub配置
+├── main.py                     # 主启动程序
+├── requirements.txt            # 依赖清单
+├── config_template.py          # 配置模板
+└── README.md                   # 项目说明
 ```
 
-## 🤝 贡献指南
+## 🚀 快速开始
 
-我们欢迎任何形式的贡献！在参与之前请：
+### 方法一: 一键启动 (推荐)
 
-⚠️ **必读**：[贡献者授权协议(CLA)](./CLA.md) - 保障项目知识产权
+1. **下载项目**
+   ```bash
+   git clone https://github.com/your-username/CoverageMapper.git
+   cd CoverageMapper
+   ```
 
-### 贡献流程
-1. **阅读协议**：仔细阅读并同意[CLA协议](./CLA.md)
-2. **Fork项目**：创建您的项目副本
-3. **开发功能**：在feature分支上开发
-4. **测试验证**：确保代码质量和功能正常
-5. **提交PR**：包含CLA确认声明的Pull Request
+2. **安装依赖**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-详细指南：[CONTRIBUTING.md](./CONTRIBUTING.md) | 安全指南：[SECURITY_GUIDE.md](./SECURITY_GUIDE.md)
+3. **启动程序**
+   ```bash
+   python main.py
+   ```
+   
+   或者在Windows上双击运行 `scripts/start_gui.bat`
 
-## 📋 系统要求
+4. **使用应用**
+   - 点击 "🚀 一键启动完整服务"
+   - 程序自动生成示例数据、启动服务器、打开浏览器
 
-### 最低要求
-- **操作系统**：Windows 10/11, macOS 10.14+, Ubuntu 18.04+
-- **Python版本**：3.7+
-- **内存**：512MB可用内存
-- **网络**：互联网连接（访问高德地图API）
+### 方法二: 分步操作
 
-### 推荐配置
-- **Python版本**：3.8+
-- **内存**：1GB+ 可用内存
-- **浏览器**：Chrome 90+, Firefox 88+, Safari 14+
+1. **生成示例数据**: 点击"生成示例数据"按钮
+2. **启动服务器**: 点击"启动服务器"按钮  
+3. **打开网页**: 点击"打开网页"按钮
+4. **查看地图**: 在浏览器中分析信号覆盖情况
 
-## 📄 开源协议
+## 📊 数据格式
 
-本项目采用 [MIT License](LICENSE) 开源协议，允许商业和非商业使用。
+Excel文件应包含以下列：
 
-## 📞 技术支持
+| 列名 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| 位置描述 | 文本 | 位置简要描述 | "南通市崇川区南大街" |
+| 详细地址 | 文本 | 完整地址信息 | "江苏省南通市崇川区南大街128号" |
+| 网络类型 | 文本 | 网络类型 | "4G" 或 "5G" |
+| 信号强度 | 数字 | 信号强度等级 | 1-8 (1=无信号, 8=信号excellent) |
+| 上报时间 | 日期 | 数据上报时间 | "2024-01-15 10:30" |
+| 上报人 | 文本 | 数据上报人员 | "张三" |
+| 备注 | 文本 | 其他备注信息 | "地下商场信号较弱" |
 
-- **文档中心**：[技术文档](./TECHNICAL_DOCUMENTATION.md)
-- **问题反馈**：[GitHub Issues](https://github.com/yourusername/CoverageMapper/issues)
-- **安全报告**：[安全指南](./SECURITY_GUIDE.md)
+## 🔧 功能详解
+
+### 核心功能
+- **📍 地图展示**: 基于高德地图的专业地图服务
+- **🔥 热力图**: 根据信号强度生成直观的热力分布
+- **📌 标记点**: 显示具体的监测点位置和详细信息
+- **🎛️ 筛选器**: 支持按网络类型、信号强度范围筛选数据
+- **📊 智能分析**: 
+  - 基础统计分析
+  - K-means聚类分析
+  - 信号盲区检测
+  - 信号分布分析
+  - 覆盖质量评估
+  - 优化建议生成
+
+### 技术特性
+- **🔍 系统诊断**: 自动检测系统环境和依赖
+- **📝 五级日志**: DEBUG/INFO/WARNING/ERROR/CRITICAL
+- **⚡ 错误恢复**: 智能异常分析和解决方案提示
+- **🛡️ 权限检查**: 自动检测文件权限和端口可用性
+- **📊 性能监控**: 实时系统资源监控
+
+## 🛠️ 高级配置
+
+### 环境变量设置
+
+创建 `.env` 文件配置：
+```env
+# 高德地图API配置
+AMAP_WEB_KEY=your_web_api_key_here
+AMAP_WEB_SECRET=your_web_secret_here
+
+# 服务器配置
+SERVER_HOST=localhost
+SERVER_PORT=8888
+DEBUG_MODE=false
+
+# 数据文件路径
+DATA_FILE_PATH=data/example_data.xlsx
+HTML_OUTPUT_PATH=static/signal_coverage_map.html
+LOG_FILE_PATH=data/signal_mapper.log
+```
+
+### 自定义配置
+
+编辑 `config_template.py`:
+```python
+# API配置
+AMAP_WEB_KEY = "your_api_key"
+AMAP_WEB_SECRET = "your_secret"
+
+# 文件路径
+DEFAULT_EXCEL_FILE = "data/example_data.xlsx"
+DEFAULT_HTML_FILE = "static/signal_coverage_map.html"
+LOG_FILE = "data/signal_mapper.log"
+
+# 地图配置
+DEFAULT_CENTER = [120.8644, 32.0072]  # 南通市中心
+DEFAULT_ZOOM = 11
+```
+
+## 🔍 故障排除
+
+### 常见问题
+
+| 问题 | 解决方案 |
+|------|----------|
+| 🚫 服务器启动失败 | 检查端口占用，程序会自动切换可用端口 |
+| 📂 文件权限错误 | 以管理员身份运行程序 |
+| 🌐 浏览器未打开 | 手动复制显示的URL到浏览器 |
+| 📊 数据格式错误 | 使用生成的示例数据作为模板 |
+| 🔑 API密钥问题 | 在config_template.py中配置有效的高德地图API密钥 |
+
+### 诊断工具
+
+程序内置了完整的诊断工具：
+
+1. **系统检查**: 检测Python环境、依赖包、文件权限
+2. **调试模式**: 开启详细的操作日志
+3. **日志导出**: 导出完整的诊断报告
+4. **错误分析**: 智能错误分析和解决方案提示
+
+## 📈 性能优化
+
+- **内存优化**: 大数据集分批处理，避免内存溢出
+- **渲染优化**: 热力图数据聚合，提升渲染性能  
+- **网络优化**: 本地HTTP服务器，避免跨域问题
+- **缓存机制**: 智能缓存地理编码结果
+
+## 🤝 参与贡献
+
+我们欢迎任何形式的贡献！请查看 [CONTRIBUTING.md](docs/CONTRIBUTING.md) 了解详细信息。
+
+### 贡献类型
+- 🐛 Bug修复
+- ✨ 新功能开发  
+- 📚 文档改进
+- 🧪 测试用例
+- 🎨 界面优化
+
+## 📄 许可证
+
+本项目基于 [MIT License](LICENSE) 开源协议。
 
 ## 🙏 致谢
 
-- [高德地图开放平台](https://lbs.amap.com/) - 地图服务支持
-- [XLSX.js](https://github.com/SheetJS/sheetjs) - Excel解析库
-- 所有贡献者和用户的支持与反馈
+- [高德地图开放平台](https://lbs.amap.com/) - 提供地图服务
+- [Pandas](https://pandas.pydata.org/) - 数据处理
+- [Tkinter](https://docs.python.org/3/library/tkinter.html) - GUI界面
+- [OpenPyXL](https://openpyxl.readthedocs.io/) - Excel文件处理
+
+## 📞 支持
+
+- 📧 邮箱: support@coveragemapper.com
+- 🐛 问题反馈: [GitHub Issues](https://github.com/your-username/CoverageMapper/issues)
+- 📖 文档: [技术文档](docs/TECHNICAL_DOCUMENTATION.md)
+- 🔒 安全: [安全指南](docs/SECURITY_GUIDE.md)
 
 ---
 
-⭐ **如果这个项目对您有帮助，请给个Star支持！** 
-
-🚀 **立即体验**：下载项目，双击 `start_gui.bat`，30秒内体验完整功能！ 
+**�� 让网络覆盖分析变得简单高效！** 

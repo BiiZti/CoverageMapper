@@ -40,9 +40,9 @@ SERVER_PORT_START = 8888  # 起始端口，程序会自动寻找可用端口
 SERVER_PORT_END = 8999    # 结束端口
 
 # 数据文件配置
-DEFAULT_EXCEL_FILE = "example_data.xlsx"
-DEFAULT_HTML_FILE = "signal_coverage_map.html"
-LOG_FILE = "signal_mapper.log"
+DEFAULT_EXCEL_FILE = "data/example_data.xlsx"
+DEFAULT_HTML_FILE = "static/signal_coverage_map.html"
+LOG_FILE = "data/signal_mapper.log"
 
 # ================================
 # 安全配置

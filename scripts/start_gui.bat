@@ -9,7 +9,8 @@ echo ========================================
 echo.
 echo 正在启动GUI程序...
 
-cd /d "%~dp0"
+REM 切换到项目根目录
+cd /d "%~dp0\.."
 
 REM 检查Python是否已安装
 python --version >nul 2>&1
@@ -34,11 +35,17 @@ if errorlevel 1 (
     pip install openpyxl
 )
 
+pip show psutil >nul 2>&1
+if errorlevel 1 (
+    echo 📦 安装依赖包：psutil
+    pip install psutil
+)
+
 echo.
 echo ✅ 环境检查完成，启动程序...
 
 REM 启动GUI程序（最小化终端窗口）
-start /min "" python signal_mapper_gui.py
+start /min "" python src/signal_mapper_gui.py
 
 REM 等待2秒确保程序启动
 timeout /t 2 /nobreak >nul

@@ -463,7 +463,7 @@ def generate_amap_html(excel_file, output_file):
 
 def main():
     """主函数"""
-    excel_file = "example_data.xlsx"
+    excel_file = "../data/example_data.xlsx"
     output_file = "amap_signal_heatmap.html"
     
     print("🗺️ 高德地图信号盲区可视化生成器")
