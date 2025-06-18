@@ -6,10 +6,17 @@ import os
 
 class SignalMapper:
     def __init__(self):
-        # 直接设置API Key，避免.env文件编码问题
-        self.amap_key = "308c6e2c574d334b06a71ef7c21f0b25"
+        # 从配置文件或环境变量读取API密钥
+        try:
+            from config import AMAP_API_KEY
+            self.amap_key = AMAP_API_KEY
+        except ImportError:
+            self.amap_key = os.getenv('AMAP_API_KEY', '')
+            if not self.amap_key:
+                print("⚠️  警告: 未配置API密钥，请参考config_template.py")
+        
         if not self.amap_key:
-            raise ValueError("API密钥未设置")
+            raise ValueError("API密钥未设置，请配置config.py或环境变量AMAP_API_KEY")
 
     def read_excel_data(self, file_path):
         """读取Excel文件中的信号盲区数据"""

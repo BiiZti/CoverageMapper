@@ -11,9 +11,21 @@ import json
 import time
 from datetime import datetime
 
-# 高德地图API配置
-AMAP_API_KEY = "308c6e2c574d334b06a71ef7c21f0b25"  # 服务端API密钥（用于地理编码）
-AMAP_JS_KEY = "d9f68330ebc73e4856581f67deac33a5"   # JavaScript API密钥（用于地图显示）
+# 高德地图API配置 - 从配置文件读取
+import os
+try:
+    from config import AMAP_API_KEY, AMAP_JS_KEY
+except ImportError:
+    # 如果没有配置文件，从环境变量读取
+    AMAP_API_KEY = os.getenv('AMAP_API_KEY', '')
+    AMAP_JS_KEY = os.getenv('AMAP_JS_KEY', '')
+    
+    if not AMAP_API_KEY or not AMAP_JS_KEY:
+        print("⚠️  警告: 未找到API密钥配置")
+        print("请按照以下步骤配置:")
+        print("1. 复制 config_template.py 为 config.py")
+        print("2. 在 config.py 中填入您的高德地图API密钥")
+        print("3. 或设置环境变量 AMAP_API_KEY 和 AMAP_JS_KEY")
 
 def geocode_address(address):
     """使用高德地图API进行地理编码"""
