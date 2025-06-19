@@ -260,7 +260,6 @@ Closes #(issue_number)
 ### 讨论渠道
 - **GitHub Issues**: 报告问题和请求功能
 - **GitHub Discussions**: 技术讨论和问答
-- **项目邮箱**: [project@example.com]
 
 ### 新手指导
 如果您是开源项目新手：
@@ -274,7 +273,6 @@ Closes #(issue_number)
 ### 安全问题
 如发现安全漏洞，请：
 - **不要**在公开Issue中报告
-- 发送邮件至安全团队：security@example.com
 - 提供详细的漏洞信息
 - 等待我们的回复和处理
 

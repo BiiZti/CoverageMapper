@@ -102,7 +102,6 @@ I have read and agree to the Contributor License Agreement (CLA), and confirm th
 ### 9. 联系方式
 
 如对本协议有任何疑问，请联系：
-- 项目维护者：[项目邮箱]
 - GitHub Issues：[项目Issues链接]
 
 ---
