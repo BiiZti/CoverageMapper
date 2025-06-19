@@ -206,7 +206,6 @@ DEFAULT_ZOOM = 11
 
 ## 📞 支持
 
-- 📧 邮箱: support@coveragemapper.com
 - 🐛 问题反馈: [GitHub Issues](https://github.com/your-username/CoverageMapper/issues)
 - 📖 文档: [技术文档](docs/TECHNICAL_DOCUMENTATION.md)
 - 🔒 安全: [安全指南](docs/SECURITY_GUIDE.md)
